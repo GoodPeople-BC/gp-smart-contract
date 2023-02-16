@@ -37,10 +37,10 @@ contract GPVault is IGPVault, AccessControl {
     function getDonateInfo(uint donateId)
         external
         view
-        returns (uint, uint, string memory)
+        returns (uint, uint, string memory, uint, uint)
     {
         DonateProposal memory p = donations[donationIndex[donateId]];
-        return (p.currentAmount, p.maxAmount, p.desc);
+        return (p.currentAmount, p.maxAmount, p.desc, p.start, p.end);
     }
 
     function getDonateProposal(uint donateId)

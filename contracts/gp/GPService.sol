@@ -22,6 +22,8 @@ contract GPService {
         string ipfsKey;
         uint governanceStatus;
         uint donationStatus;
+        uint start;
+        uint end;
     }
 
     struct DonationBaseInfo {
@@ -98,13 +100,14 @@ contract GPService {
         returns (DonationInfo memory)
     {
         DonationInfo memory info;
-        (uint current, uint max, string memory key) = vault.getDonateInfo(donationId);
+        (uint current, uint max, string memory key, uint start, uint end) = vault.getDonateInfo(donationId);
         info.donationStatus = uint(vault.getCurrentStatus(donationId));
         info.governanceStatus = uint(vault.getDonationStatus(donationId));
         info.currentAmount = current;
         info.maxAmount = max;
         info.ipfsKey = key;
-
+        info.start = start;
+        info.end = end;
         info.add = getAddDonation(donationId);
         if (abortProposalIds[donationId] != 0) {
             info.hasAbort = true;
