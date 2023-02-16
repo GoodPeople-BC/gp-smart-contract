@@ -128,8 +128,8 @@ contract GPService {
         view
         returns (DonationBaseInfo memory info)
     {
-        ProposalInfo memory p = addProposalInfo[donationId];
         uint proposalId = addProposalIds[donationId];
+        ProposalInfo memory p = addProposalInfo[proposalId];
         uint state = uint(governance.state(proposalId));
         (uint voteAgainst, uint voteFor,) = governance.proposalVotes(proposalId);
         info.donateId = donationId;
@@ -146,8 +146,8 @@ contract GPService {
         view
         returns (DonationBaseInfo memory info)
     {
-        ProposalInfo memory p = abortProposalInfo[donationId];
         uint proposalId = abortProposalIds[donationId];
+        ProposalInfo memory p = abortProposalInfo[proposalId];
         uint state = uint(governance.state(proposalId));
         (uint voteAgainst, uint voteFor,) = governance.proposalVotes(proposalId);
         info.donateId = donationId;
