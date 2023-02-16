@@ -59,6 +59,10 @@ contract GPVault is IGPVault, AccessControl {
         DonateProposal memory p = donations[donationIndex[donateId]];
         require(p.recipient != address(0), "V: invalid proposal id");
 
+        if (p.claimed) {
+            return DonateStatus.Completed;
+        }
+        
         uint current = block.timestamp;
         if (current < p.start) {
             return DonateStatus.Waiting;
@@ -105,6 +109,7 @@ contract GPVault is IGPVault, AccessControl {
             maxAmount: maxAmount,
             start: uint32(start),
             end: uint32(end),
+            claimed: false,
             recipient: recipient,
             status: DonationStatus.Vote,
             desc: desc
@@ -171,7 +176,7 @@ contract GPVault is IGPVault, AccessControl {
         require(usdc.transfer(p.recipient, p.maxAmount - fee), "V: failed to recipient transfer");
         p.status = DonationStatus.Completed;
         p.currentAmount = 0;
-
+        p.claimed = true;
         // todo badge
         emit Claimed(p.donateId, p.recipient, p.maxAmount);
     }

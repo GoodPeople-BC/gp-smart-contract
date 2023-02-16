@@ -20,6 +20,8 @@ contract GPService {
         uint currentAmount;
         uint maxAmount;
         string ipfsKey;
+        uint governanceStatus;
+        uint donationStatus;
     }
 
     struct DonationBaseInfo {
@@ -97,6 +99,8 @@ contract GPService {
     {
         DonationInfo memory info;
         (uint current, uint max, string memory key) = vault.getDonateInfo(donationId);
+        info.donationStatus = uint(vault.getCurrentStatus(donationId));
+        info.governanceStatus = uint(vault.getDonationStatus(donationId));
         info.currentAmount = current;
         info.maxAmount = max;
         info.ipfsKey = key;

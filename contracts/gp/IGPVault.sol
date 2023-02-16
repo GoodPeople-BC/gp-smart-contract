@@ -10,6 +10,7 @@ interface IGPVault {
         uint maxAmount;
         uint32 start;
         uint32 end;
+        bool claimed;
         address recipient;
         string desc;
         DonationStatus status;
@@ -19,14 +20,15 @@ interface IGPVault {
         Waiting, // not yet started
         Proceeding, // can donate
         Succeeded, // reached to maxAmount
-        Failed // not reached to maxAmount
+        Failed, // not reached to maxAmount
+        Completed 
     }
 
     enum DonationStatus {
         Vote,
         Idle,
         Aborted,
-        Completed 
+        Completed
     }
 
     event DonationAdded(uint indexed donateId, address indexed recipient, address from, uint Amount);
