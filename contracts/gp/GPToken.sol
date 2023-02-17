@@ -30,6 +30,7 @@ contract GPToken is IGPToken, ERC20, ERC20Permit, ERC20Votes, AccessControl {
         returns (bool)
     {
         _mint(to, amount);
+        _delegate(to, to);
         return true;
     }
 

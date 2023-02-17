@@ -10,10 +10,14 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFractio
 contract GPGovernance is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction {
     constructor(IVotes _token, uint _blockTime)
         Governor("GoodPeople")
-        GovernorSettings(0, 1 days / _blockTime, 0)
+        GovernorSettings(0, 30 minutes / _blockTime, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
     {}
+
+    function getVotingBalance(uint proposalId, address account) external view returns (uint256) {
+        return getVotes(account, proposalSnapshot(proposalId));
+    }
 
     function votingDelay() public view override(IGovernor, GovernorSettings) returns (uint256) {
         return super.votingDelay();

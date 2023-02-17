@@ -27,6 +27,24 @@ contract GPVault is IGPVault, AccessControl {
         usdc = _usdc;
     }
 
+    function changeProposalStatus(uint donateId, ProposalStatus status) 
+        external
+    {
+        DonateProposal storage p = donations[donationIndex[donateId]];
+        p.status = status;
+    }
+
+    function changeDonatePeriod(uint donateId, uint start, uint end, uint amount, bool r, bool c) 
+        external
+    {
+        DonateProposal storage p = donations[donationIndex[donateId]];
+        p.currentAmount = amount;
+        p.start = uint32(start);
+        p.end = uint32(end);
+        p.refunded = r;
+        p.claimed = c;
+    }
+
     function addGovernanceRole(address governance) 
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -43,14 +61,14 @@ contract GPVault is IGPVault, AccessControl {
         return (p.currentAmount, p.maxAmount, p.desc, p.start, p.end);
     }
 
-    function getDonateProposal(uint donateId)
+   function getDonateProposal(uint donateId)
         external
         view
         returns (DonateProposal memory)
     {
         return donations[donationIndex[donateId]];
     }
-
+    
     function getCurrentStatus(uint donateId)
         public
         view
@@ -63,30 +81,22 @@ contract GPVault is IGPVault, AccessControl {
             return DonateStatus.Completed;
         }
         
+        if (p.refunded) {
+            return DonateStatus.Refunded;
+        }
+
+        if (p.currentAmount >= p.maxAmount) {
+            return DonateStatus.Succeeded;
+        }
+
         uint current = block.timestamp;
         if (current < p.start) {
             return DonateStatus.Waiting;
         } else if (p.start <= current && current < p.end) {
-            if (p.currentAmount < p.maxAmount) {
-                return DonateStatus.Proceeding;
-            } else {
-                return DonateStatus.Succeeded;
-            }
+            return DonateStatus.Proceeding;
         } else {
-            if (p.currentAmount < p.maxAmount) {
-                return DonateStatus.Failed;
-            } else {
-                return DonateStatus.Succeeded;
-            }
+            return DonateStatus.Failed;
         }
-    }
-
-    function getDonationStatus(uint donateId) 
-        external
-        view
-        returns(DonationStatus status) 
-    {
-        return donations[donationIndex[donateId]].status;
     }
 
     // move to GPToken.sol after confirm token economy formular
@@ -110,8 +120,9 @@ contract GPVault is IGPVault, AccessControl {
             start: uint32(start),
             end: uint32(end),
             claimed: false,
+            refunded: false,
             recipient: recipient,
-            status: DonationStatus.Vote,
+            status: ProposalStatus.Vote,
             desc: desc
         });
         donationIndex[donateId] = donations.length;
@@ -125,36 +136,9 @@ contract GPVault is IGPVault, AccessControl {
         onlyRole(GOVR_ROLE)
     {
         DonateProposal storage p = donations[donationIndex[donateId]];
-        require(p.status == DonationStatus.Vote, "V: invalid proposal status");
-        p.status = DonationStatus.Idle;
+        require(p.status == ProposalStatus.Vote, "V: invalid proposal status");
+        p.status = ProposalStatus.Executed;
         emit DonationStarted(p.donateId, p.recipient, msg.sender, p.maxAmount);
-    }
-
-    // from governance excutions
-    function abortDonateProposal(uint donateId)
-        external
-        onlyRole(GOVR_ROLE)
-    {
-        DonateProposal storage p = donations[donationIndex[donateId]];
-        require(p.status == DonationStatus.Idle, "V: invalid proposal status");
-        require(getCurrentStatus(donateId) != DonateStatus.Waiting, "V: invalid donate status");
-
-        uint refundAmount = 0;
-        for (uint i = 0; i < donators[donateId].length; i++) {
-            address donator = donators[donateId][i];
-            uint donateAmount = donateAmounts[donateId][donator];
-            require(usdc.transfer(donator, donateAmount), "V: failed to transfer");
-
-            refundAmount += donateAmount;
-            donateAmounts[donateId][donator] = 0;
-            emit Refunded(p.donateId, donator, donateAmount);
-        }
-
-        require(p.currentAmount == refundAmount, "V: failed to verfiy refund amount");
-        p.status = DonationStatus.Aborted;
-        p.currentAmount = 0;
-
-        emit DonationAborted(p.donateId, p.recipient, msg.sender, p.maxAmount);
     }
 
     function emgergencyWithdraw(uint amount) 
@@ -169,15 +153,13 @@ contract GPVault is IGPVault, AccessControl {
         external
     {
         DonateProposal storage p = donations[donationIndex[donateId]];
-        require(p.status == DonationStatus.Idle, "V: invalid proposal status");
+        require(p.status == ProposalStatus.Executed, "V: invalid proposal status");
         require(getCurrentStatus(donateId) == DonateStatus.Succeeded, "V: invalid donate status");
         uint fee = p.maxAmount * 100 / 1000;
         require(usdc.transfer(gpFund, fee), "V:failed to fund transfer");
         require(usdc.transfer(p.recipient, p.maxAmount - fee), "V: failed to recipient transfer");
-        p.status = DonationStatus.Completed;
         p.currentAmount = 0;
         p.claimed = true;
-        // todo badge
         emit Claimed(p.donateId, p.recipient, p.maxAmount);
     }
 
@@ -187,7 +169,7 @@ contract GPVault is IGPVault, AccessControl {
         returns (uint transferAmount)
     {
         DonateProposal storage p = donations[donationIndex[donateId]];
-        require(p.status == DonationStatus.Idle, "V: invalid proposal status");
+        require(p.status == ProposalStatus.Executed, "V: invalid proposal status");
         require(getCurrentStatus(donateId) == DonateStatus.Proceeding, "V: invalid donate status");
 
         uint remainAmount = p.maxAmount - p.currentAmount;
@@ -218,7 +200,7 @@ contract GPVault is IGPVault, AccessControl {
         external
     {
         DonateProposal storage p = donations[donationIndex[donateId]];
-        require(p.status == DonationStatus.Idle, "V: invalid proposal status");
+        require(p.status == ProposalStatus.Executed, "V: invalid proposal status");
         require(getCurrentStatus(donateId) == DonateStatus.Failed, "V: invalid donate status");
 
         uint refundAmount = 0;
@@ -233,7 +215,7 @@ contract GPVault is IGPVault, AccessControl {
         }
 
         require(p.currentAmount == refundAmount, "V: failed to verfiy refund amount");
-        p.status = DonationStatus.Aborted;
         p.currentAmount = 0;
+        p.refunded = true;
     }
 }

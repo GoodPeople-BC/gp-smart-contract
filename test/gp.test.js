@@ -71,33 +71,35 @@ describe("GP Test", function () {
     {
         await usdc.connect(owner).approve(vault.address, "10000000000000000000");
         await vault.connect(owner).sponsorGp("10000000000000000000");
-        await token.connect(owner).delegate(owner.address)
+        // await token.connect(owner).delegate(owner.address)
     }
 
     // 투표 의제 등록
     let proposeId
     let donationId
     {
+      console.log("1. add proposal")
         await gps.connect(owner).addDonationProposal("10000000", "1209600", recipient.address, "ipfs/url")
         donationId = await gps.addLength();
         console.log(donationId)
         const proposal = await vault.getDonateProposal(donationId-1)
-        console.log("proposal")
         console.log(proposal)
         proposeId = await gps.getAddProposalIds(donationId-1)
-        console.log("proposeId")
-        console.log(proposeId)
-
-        // await gps.connect(owner).abortDonationProposal(donationId-1);
     }
 
     // 찬성 투표
     { 
+        console.log("2. vote")
         await gp.connect(owner).castVote(proposeId, 1)
+
+        const balance = await gp.getVotingBalance(proposeId, owner.address)
+        console.log("2. vote")
+        console.log(balance)
     }
 
     // 투표 조회
     {
+        console.log("3. get proposal")
         const voted = await gp.proposalVotes(proposeId)
         console.log(voted)
 
@@ -108,33 +110,29 @@ describe("GP Test", function () {
 
     // 기부 리스트 조회
     {
+        console.log("4. get proposal list")
         const list = await gps.getDonationList()
         console.log(list)
     }
 
     // 투표 시간 조정
     {
+        console.log("5. end proposal")
         for (let index = 0; index < 8600; index++) {
             await network.provider.send("evm_mine")
         }    
     }
 
-    // 투표 상태 조회
-    {
-        const state = await gp.state(proposeId);
-        console.log(state);
-    }
-
     // 투표 실행
     {
+        console.log("6. execute proposal")
         console.log(donationId-1)
-        const id = await gps.hashProp(donationId-1)
-        console.log(id)
         await gps.executeAddDonationProposal(donationId-1)
     }
 
     // 현재 기부 상태
     {
+        console.log("7. get proposal")
         const proposal = await vault.getDonateProposal(donationId-1)
         console.log("proposal")
         console.log(proposal)
@@ -142,12 +140,14 @@ describe("GP Test", function () {
 
     // 기부 리스트 조회
     {
+        console.log("8. get proposal list")
         const list = await gps.getDonationList()
         console.log(list)
     }
 
     // 기부하기
     {
+        console.log("9. before donate")
         const status = await vault.getCurrentStatus(donationId-1);
         console.log(status);
         await network.provider.send("evm_increaseTime", [90000])
@@ -162,7 +162,6 @@ describe("GP Test", function () {
         await usdc.connect(owner).approve(vault.address, 10000000)
         await vault.connect(owner).donate(donationId-1, 10000000);
         const status3 = await vault.getCurrentStatus(donationId-1);
-        console.log(status3);
         const proposal = await vault.getDonateProposal(donationId-1)
         console.log("proposal")
         console.log(proposal)
@@ -193,6 +192,12 @@ describe("GP Test", function () {
 
         const b2 = await usdc.balanceOf(recipient.address)
         console.log(b2)
+    }
+
+    {
+      console.log("Get donation by key")
+      const list = await gps.getDonationBykey("ipfs/url")
+      console.log(list)
     }
   });
 });

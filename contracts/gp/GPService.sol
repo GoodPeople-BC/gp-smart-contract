@@ -15,13 +15,9 @@ contract GPService {
     using Counters for Counters.Counter;
     struct DonationInfo {
         DonationBaseInfo add;
-        DonationBaseInfo abort;
-        bool hasAbort;
         uint currentAmount;
         uint maxAmount;
         string ipfsKey;
-        uint governanceStatus;
-        uint donationStatus;
         uint start;
         uint end;
     }
@@ -41,11 +37,23 @@ contract GPService {
         uint period;
     }
 
+    enum Status {
+        Voting, // 0 
+        VoteDefeated, // 1
+        VoteSucceeded, // 2
+        DonateWaiting, // 3
+        Donating, // 4
+        DonateDefeated, // 5
+        DonateSucceeded, // 6
+        DonateComplete, // 7
+        DonateRefunded, // 8
+        Unknown // 9
+    }
+
     GPGovernance private governance;
     GPVault private vault;
     GPBadge private badge;
     Counters.Counter private counter;
-    // Counters.Counter private abortCounter;
 
     uint[] private targetAmounts = [10 ether / 1e12, 100 ether / 1e12, 1000 ether / 1e12];
     uint[] private targetPeriods = [2 weeks, 4 weeks, 12 weeks ];
@@ -53,8 +61,6 @@ contract GPService {
     mapping(bytes32 => uint) ipfsKeys;
     mapping(uint => uint) addProposalIds; // donationId => proposalId
     mapping(uint => ProposalInfo) addProposalInfo; // proposalId => info
-    mapping(uint => uint) abortProposalIds; // donationId => proposalId
-    mapping(uint => ProposalInfo) abortProposalInfo; // proposalId => info
 
     constructor(GPGovernance _governance, GPVault _vault) {
         governance = _governance;
@@ -67,14 +73,6 @@ contract GPService {
         returns (uint)
     {
         return addProposalIds[donationId];
-    }
-
-    function getAbortProposalIds(uint donationId)
-        external
-        view
-        returns (uint)
-    {
-        return abortProposalIds[donationId];
     }
 
     function addLength()
@@ -101,18 +99,12 @@ contract GPService {
     {
         DonationInfo memory info;
         (uint current, uint max, string memory key, uint start, uint end) = vault.getDonateInfo(donationId);
-        info.donationStatus = uint(vault.getCurrentStatus(donationId));
-        info.governanceStatus = uint(vault.getDonationStatus(donationId));
         info.currentAmount = current;
         info.maxAmount = max;
         info.ipfsKey = key;
         info.start = start;
         info.end = end;
         info.add = getAddDonation(donationId);
-        if (abortProposalIds[donationId] != 0) {
-            info.hasAbort = true;
-            info.abort = getAbortDonation(donationId);
-        }
 
         return info;
     }
@@ -137,31 +129,12 @@ contract GPService {
     {
         uint proposalId = addProposalIds[donationId];
         ProposalInfo memory p = addProposalInfo[proposalId];
-        uint state = uint(governance.state(proposalId));
         (uint voteAgainst, uint voteFor,) = governance.proposalVotes(proposalId);
         info.donateId = donationId;
         info.proposalId = proposalId;
         info.voteFor = voteFor;
         info.voteAgainst = voteAgainst;
-        info.canVote = getState(state);
-        info.createdTime = p.createTime;
-        info.period = p.period;
-    }
-
-    function getAbortDonation(uint donationId) 
-        public
-        view
-        returns (DonationBaseInfo memory info)
-    {
-        uint proposalId = abortProposalIds[donationId];
-        ProposalInfo memory p = abortProposalInfo[proposalId];
-        uint state = uint(governance.state(proposalId));
-        (uint voteAgainst, uint voteFor,) = governance.proposalVotes(proposalId);
-        info.donateId = donationId;
-        info.proposalId = proposalId;
-        info.voteFor = voteFor;
-        info.voteAgainst = voteAgainst;
-        info.canVote = getState(state);
+        info.canVote = uint(getState(donationId));
         info.createdTime = p.createTime;
         info.period = p.period;
     }
@@ -222,70 +195,37 @@ contract GPService {
         governance.execute(l1, l2, l3, keccak256(bytes("")));
     }
 
-    function hashProp(uint donationId)
-        external
-        view
-        returns (uint)
-    {
-        address[] memory l1 = new address[](1);
-        l1[0] = address(vault);
-        uint[] memory l2 = new uint[](1);
-        l2[0] = 0;
-        bytes[] memory l3 = new bytes[](1);
-        l3[0]  = abi.encodeWithSelector(vault.abortDonateProposal.selector, donationId);
-        return governance.hashProposal(l1, l2, l3, "");
-    }
-
-    function abortDonationProposal(uint donationId) 
-        external
-        returns (uint)
-    {
-        //donationID validation
-        //governance에 등록된 거버 넌스 안건 리스트 조회
-        address[] memory l1 = new address[](1);
-        l1[0] = address(vault);
-        uint[] memory l2 = new uint[](1);
-        l2[0] = 0;
-        bytes[] memory l3 = new bytes[](1);
-        l3[0]  = abi.encodeWithSelector(vault.abortDonateProposal.selector, donationId);
-        uint proposeId = governance.propose(l1, l2, l3, "");
-        abortProposalIds[donationId] = proposeId;
-        abortProposalInfo[proposeId] = ProposalInfo({
-            createTime: block.timestamp,
-            period: governance.votingPeriod()
-        });
-
-        return proposeId;
-    }
-
-    function executeAbortDonationProposal(uint donationId) 
-        external
-    {
-        //governance 호출 하여 기부 요청 안건 등록
-        address[] memory l1 = new address[](1);
-        l1[0] = address(vault);
-        uint[] memory l2 = new uint[](1);
-        l2[0] = 0;
-        bytes[] memory l3 = new bytes[](1);
-        l3[0]  = abi.encodeWithSelector(vault.abortDonateProposal.selector, donationId);
-        governance.execute(l1, l2, l3, "");
-    }
-
-    function getState(uint state) 
+    // abort 없애고
+    // state 정리
+    function getState(uint donationId) 
         public
-        pure
-        returns (uint)
+        view
+        returns (Status status)
     {
-        if(state == 1) { // ProposalState.Active
-            return 0;
-        } else if (state == 3) { // ProposalState.Defeated
-            return 1;
-        } else if (state == 4) { // ProposalState.Succeeded
-            return 2;
-        } else if (state == 7) { // ProposalState. Executed
-            return 3;
+        IGovernor.ProposalState state = governance.state(addProposalIds[donationId]);
+        if(state == IGovernor.ProposalState.Active) { // ProposalState.Active
+            return Status.Voting;
+        } else if (state == IGovernor.ProposalState.Succeeded) { // ProposalState.Succeeded 
+            return Status.VoteSucceeded;
+        } else if (state == IGovernor.ProposalState.Defeated) { // ProposalState.Defeated
+            return Status.VoteDefeated;
+        } else if (state == IGovernor.ProposalState.Executed) { // ProposalState. Executed
+            IGPVault.DonateStatus dState = vault.getCurrentStatus(donationId);
+            if (dState == IGPVault.DonateStatus.Waiting) {
+                return Status.DonateWaiting;
+            } else if (dState == IGPVault.DonateStatus.Proceeding) {
+                return Status.Donating;
+            } else if (dState == IGPVault.DonateStatus.Succeeded) {
+                return Status.DonateSucceeded;
+            } else if (dState == IGPVault.DonateStatus.Failed) {
+                return Status.DonateDefeated;
+            } else if (dState == IGPVault.DonateStatus.Completed) {
+                return Status.DonateComplete;
+            } else if (dState == IGPVault.DonateStatus.Refunded) {
+                return Status.DonateRefunded;
+            }
         } else { // Pending, Canceled, Queued, Expired
-            return 4;
+            return Status.Unknown;
         }
     }
 }
