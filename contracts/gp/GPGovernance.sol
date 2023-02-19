@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFractio
 contract GPGovernance is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction {
     constructor(IVotes _token, uint _blockTime)
         Governor("GoodPeople")
-        GovernorSettings(0, 30 minutes / _blockTime, 0)
+        GovernorSettings(0, 24 hours / _blockTime, 0) // 24 시간으로 변경 필요
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
     {}

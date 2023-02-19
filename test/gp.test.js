@@ -29,13 +29,13 @@ describe("GP Test", function () {
 
   it("Deploy gp contract", async function () {
     const GP = await ethers.getContractFactory("GPGovernance", owner);
-    gp = await GP.deploy(token.address, 12);
+    gp = await GP.deploy(token.address, 2);
     await gp.deployed();
   })
 
   it("Deploy gp service contract", async function() {
     const GPS = await ethers.getContractFactory("GPService", owner);
-    gps = await GPS.deploy(gp.address, vault.address)
+    gps = await GPS.deploy(gp.address, vault.address, 2)
     await gps.deployed();
   })
 
