@@ -55,6 +55,7 @@ contract GPService {
     GPBadge private badge;
     Counters.Counter private counter;
 
+    uint blockTime;
     uint[] private targetAmounts = [10 ether / 1e12, 100 ether / 1e12, 1000 ether / 1e12];
     uint[] private targetPeriods = [2 weeks, 4 weeks, 12 weeks ];
 
@@ -62,9 +63,10 @@ contract GPService {
     mapping(uint => uint) addProposalIds; // donationId => proposalId
     mapping(uint => ProposalInfo) addProposalInfo; // proposalId => info
 
-    constructor(GPGovernance _governance, GPVault _vault) {
+    constructor(GPGovernance _governance, GPVault _vault, uint _blockTime) {
         governance = _governance;
         vault = _vault;
+        blockTime = _blockTime;
     }
 
     function getAddProposalIds(uint donationId)
@@ -173,12 +175,12 @@ contract GPService {
         addProposalIds[donationId] = proposeId;
         addProposalInfo[proposeId] = ProposalInfo({
             createTime: block.timestamp,
-            period: governance.votingPeriod()
+            period: governance.votingPeriod() * blockTime
         });
 
         ipfsKeys[keccak256(bytes(url))] = donationId;
         counter.increment();
-        vault.addDonateProposal(donationId, amount, block.timestamp + 24 hours, block.timestamp + 24 hours + period, recipient, url);
+        vault.addDonateProposal(donationId, amount, block.timestamp, block.timestamp + 24 hours + period, recipient, url);
         return proposeId;
     }
 

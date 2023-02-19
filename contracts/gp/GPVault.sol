@@ -16,8 +16,8 @@ contract GPVault is IGPVault, AccessControl {
 
     DonateProposal[] public donations;
     mapping(uint => uint) public donationIndex; // did => index
-    mapping(uint => mapping(address => uint)) donateAmounts; // did => eoa => amount
-    mapping(uint => address[]) donators; // did => donators address
+    mapping(uint => mapping(address => uint)) public donateAmounts; // did => eoa => amount
+    mapping(uint => address[]) public donators; // did => donators address
 
     constructor(address _gpFund, IGPToken _gpToken, IERC20 _usdc, uint _gpBP) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -27,23 +27,23 @@ contract GPVault is IGPVault, AccessControl {
         usdc = _usdc;
     }
 
-    function changeProposalStatus(uint donateId, ProposalStatus status) 
-        external
-    {
-        DonateProposal storage p = donations[donationIndex[donateId]];
-        p.status = status;
-    }
+    // function changeProposalStatus(uint donateId, ProposalStatus status) 
+    //     external
+    // {
+    //     DonateProposal storage p = donations[donationIndex[donateId]];
+    //     p.status = status;
+    // }
 
-    function changeDonatePeriod(uint donateId, uint start, uint end, uint amount, bool r, bool c) 
-        external
-    {
-        DonateProposal storage p = donations[donationIndex[donateId]];
-        p.currentAmount = amount;
-        p.start = uint32(start);
-        p.end = uint32(end);
-        p.refunded = r;
-        p.claimed = c;
-    }
+    // function changeDonatePeriod(uint donateId, uint start, uint end, uint amount, bool r, bool c) 
+    //     external
+    // {
+    //     DonateProposal storage p = donations[donationIndex[donateId]];
+    //     p.currentAmount = amount;
+    //     p.start = uint32(start);
+    //     p.end = uint32(end);
+    //     p.refunded = r;
+    //     p.claimed = c;
+    // }
 
     function addGovernanceRole(address governance) 
         external
